@@ -76,17 +76,53 @@ defmodule EthereumJSONRPC do
   @doc """
   Fetches configuration for this module under `key`
 
-  Configuration can be set a compile time using `config`
+  Configuration can be set at compile time using `config`
 
       config :ethereume_jsonrpc, key, value
 
-  Configuration can be set a runtime using `Application.put_env/3`
+  Configuration can be set at runtime using `Application.put_env/3`
 
       Application.put_env(:ethereume_jsonrpc, key, value)
 
   """
   def config(key) do
     Application.fetch_env!(:ethereum_jsonrpc, key)
+  end
+
+  @doc """
+  Execute smart contract functions.
+
+  Receives a list of smart contract addresses and related data. Data defines
+  which function is going to be executed and which arguments this function
+  receives (if any). Also, as the last element of the tuple, addresses_and_data
+  includes the id that is going to be sent with the JSON-RPC call.
+
+  ## Examples
+
+  Execute the "sum" function that receives two arguments (20 and 22) and returns their sum (42):
+  iex> EthereumJSONRPC.execute_contract_functions([{
+  ...> "0x7e50612682b8ee2a8bb94774d50d6c2955726526",
+  ...> "0xcad0899b00000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000016",
+  ...> "sum"
+  ...> }])
+  {:ok,
+    [
+      %{
+        "id" => "sum",
+        "jsonrpc" => "2.0",
+        "result" => "0x000000000000000000000000000000000000000000000000000000000000002a"
+      }
+    ]}
+  """
+  def execute_contract_functions(addresses_and_data) do
+    addresses_and_data
+    |> Enum.map(&build_eth_call_payload/1)
+    |> json_rpc(config(:url))
+  end
+
+  defp build_eth_call_payload({address_hash, data, id}) do
+    params = [%{to: address_hash, data: data}]
+    request(%{id: id, method: "eth_call", params: params})
   end
 
   @doc """
