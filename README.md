@@ -9,12 +9,14 @@ This is a tool for inspecting and analyzing the POA Network blockchain.
 * Elixir 1.6+
 * Postgres 10.0
 * Node.js 9.10+
-
+* Automake
+  * Install on MacOS with `$ brew install automake`.
+* Libtool
+  * Install on MacOS with `$ brew install libtool`.
 
 ## Required Accounts
 
 * GitHub for code storage
-
 
 ## Setup Instructions
 

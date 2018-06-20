@@ -86,7 +86,9 @@ defmodule Explorer.Mixfile do
       {:timex, "~> 3.1.24"},
       {:timex_ecto, "~> 3.2.1"},
       # JSONRPC access to query smart contracts
-      {:ethereum_jsonrpc, in_umbrella: true}
+      {:ethereum_jsonrpc, in_umbrella: true},
+      # Encode/decode function names and arguments
+      {:abi, "~> 0.1.8"}
     ]
   end
 
