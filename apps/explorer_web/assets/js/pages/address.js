@@ -13,4 +13,11 @@ if (window.page === 'address') {
       $transactionsList.prepend(msg.transaction)
     })
   }
+
+  const $overview = $('[data-selector="overview"]')
+  if ($overview) {
+    channel.on('overview', (msg) => {
+      $overview.empty().append(msg.overview)
+    })
+  }
 }
