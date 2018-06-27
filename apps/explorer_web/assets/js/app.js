@@ -27,3 +27,4 @@ import './lib/sidebar'
 import './lib/tooltip'
 
 import './pages/address'
+import './pages/transaction'
