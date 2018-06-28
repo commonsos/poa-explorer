@@ -10,7 +10,7 @@ defmodule Explorer.SmartContract.Reader do
   alias ABI.TypeDecoder
 
   @doc """
-  Queries a contract function on the blockchain and returns the call result.
+  Queries the contract functions on the blockchain and returns the call results.
 
   ## Examples
 
@@ -113,5 +113,106 @@ defmodule Explorer.SmartContract.Reader do
       |> Base.decode16!(case: :lower)
       |> TypeDecoder.decode_raw(List.wrap(function_selector.returns))
     }
+  end
+
+  @doc """
+  List all the smart contract functions with its current value from the
+  blockchain.
+
+  Functions that require arguments can be queryable but won't list the current
+  value at this moment.
+
+  ## Examples
+
+    $ Explorer.SmartContract.Reader.read_only_functions("0x798465571ae21a184a272f044f991ad1d5f87a3f")
+    => [
+      %{
+        "constant" => true,
+        "inputs" => [],
+        "name" => "get",
+        "outputs" => [%{"name" => "", "type" => "uint256", "value" => 0}],
+        "payable" => false,
+        "stateMutability" => "view",
+        "type" => "function"
+      },
+      %{
+        "constant" => true,
+        "inputs" => [%{"name" => "x", "type" => "uint256"}],
+        "name" => "with_arguments",
+        "outputs" => [%{"name" => "", "type" => "bool", "value" => ""}],
+        "payable" => false,
+        "stateMutability" => "view",
+        "type" => "function"
+      }
+    ]
+  """
+  @spec read_only_functions(String.t()) :: [%{}]
+  def read_only_functions(contract_address_hash) do
+    functions =
+      contract_address_hash
+      |> Chain.find_smart_contract()
+      |> Map.get(:abi, [])
+      |> Enum.filter(& &1["constant"])
+
+    functions
+    |> queryable_functions_current_value(contract_address_hash)
+    |> Enum.concat(not_queryable_functions_current_value(functions))
+  end
+
+  defp not_queryable_functions_current_value(functions) do
+    functions
+    |> Enum.filter(&Enum.any?(&1["inputs"]))
+    |> Enum.map(fn function ->
+      values = link_outputs_and_values(%{}, Map.get(function, "outputs", []), function["name"])
+
+      Map.replace!(function, "outputs", values)
+    end)
+  end
+
+  defp queryable_functions_current_value(functions, contract_address_hash) do
+    functions
+    |> Enum.filter(&Enum.empty?(&1["inputs"]))
+    |> Enum.map(fn function ->
+      values =
+        contract_address_hash
+        |> fetch_from_blockchain(%{name: function["name"], args: function["inputs"], outputs: function["outputs"]})
+
+      Map.replace!(function, "outputs", values)
+    end)
+  end
+
+  @doc """
+  Fetches the blockchain value of a function that requires arguments.
+  """
+  @spec query_function(String.t(), %{name: String.t(), args: nil}) :: [%{}]
+  def query_function(contract_address_hash, %{name: name, args: nil}) do
+    query_function(contract_address_hash, %{name: name, args: []})
+  end
+
+  @spec query_function(String.t(), %{name: String.t(), args: [term()]}) :: [%{}]
+  def query_function(contract_address_hash, %{name: name, args: args}) do
+    function =
+      contract_address_hash
+      |> Chain.find_smart_contract()
+      |> Map.get(:abi, [])
+      |> Enum.filter(fn function -> function["name"] == name end)
+      |> List.first()
+
+    contract_address_hash
+    |> fetch_from_blockchain(%{name: name, args: args, outputs: function["outputs"]})
+  end
+
+  defp fetch_from_blockchain(contract_address_hash, %{name: name, args: args, outputs: outputs}) do
+    contract_address_hash
+    |> query_contract(%{name => args})
+    |> link_outputs_and_values(outputs, name)
+  end
+
+  defp link_outputs_and_values(blockchain_values, outputs, function_name) do
+    values = Map.get(blockchain_values, function_name, [""])
+
+    for output <- outputs, value <- values do
+      Map.put_new(output, "value", value)
+    end
   end
 end

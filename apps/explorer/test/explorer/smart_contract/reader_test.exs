@@ -5,29 +5,33 @@ defmodule Explorer.SmartContract.ReaderTest do
   doctest Explorer.SmartContract.Reader
 
   alias Explorer.SmartContract.Reader
+
   alias Plug.Conn
   alias Explorer.Chain.Hash
 
   @ethereum_jsonrpc_original Application.get_env(:ethereum_jsonrpc, :url)
 
+  setup do
+    bypass = Bypass.open()
+
+    Application.put_env(:ethereum_jsonrpc, :url, "http://localhost:#{bypass.port}")
+
+    on_exit(fn ->
+      Application.put_env(:ethereum_jsonrpc, :url, @ethereum_jsonrpc_original)
+    end)
+
+    {:ok, bypass: bypass}
+  end
+
   describe "query_contract/2" do
-    setup do
-      bypass = Bypass.open()
-
-      Application.put_env(:ethereum_jsonrpc, :url, "http://localhost:#{bypass.port}")
-
-      on_exit(fn ->
-        Application.put_env(:ethereum_jsonrpc, :url, @ethereum_jsonrpc_original)
+    test "correctly returns the results of the smart contract functions", %{bypass: bypass} do
+      Bypass.expect(bypass, fn conn ->
+        Conn.resp(
+          conn,
+          200,
+          ~s[{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000","id":"get"}]
+        )
       end)
-
-      {:ok, bypass: bypass}
-    end
-
-    test "correctly returns the result of a smart contract function", %{bypass: bypass} do
-      blockchain_resp =
-        "[{\"jsonrpc\":\"2.0\",\"result\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"id\":\"get\"}]\n"
-
-      Bypass.expect(bypass, fn conn -> Conn.resp(conn, 200, blockchain_resp) end)
 
       hash =
         :smart_contract
@@ -217,6 +221,91 @@ defmodule Explorer.SmartContract.ReaderTest do
 
       assert Reader.decode_result({result, selector}) ==
                {"sum", ["-32602 => Invalid params: Invalid hex: Invalid character 'x' at position 134."]}
+    end
+  end
+
+  describe "read_only_functions/1" do
+    test "fetches the smart contract read only functions with the blockchain value", %{bypass: bypass} do
+      smart_contract =
+        insert(
+          :smart_contract,
+          abi: [
+            %{
+              "constant" => true,
+              "inputs" => [],
+              "name" => "get",
+              "outputs" => [%{"name" => "", "type" => "uint256"}],
+              "payable" => false,
+              "stateMutability" => "view",
+              "type" => "function"
+            },
+            %{
+              "constant" => true,
+              "inputs" => [%{"name" => "x", "type" => "uint256"}],
+              "name" => "with_arguments",
+              "outputs" => [%{"name" => "", "type" => "bool"}],
+              "payable" => false,
+              "stateMutability" => "view",
+              "type" => "function"
+            }
+          ]
+        )
+
+      contract_address_hash = Hash.to_string(smart_contract.address_hash)
+
+      Bypass.expect(bypass, fn conn ->
+        Conn.resp(
+          conn,
+          200,
+          ~s[{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000","id":"get"}]
+        )
+      end)
+
+      response = Reader.read_only_functions(contract_address_hash)
+
+      assert [
+               %{
+                 "constant" => true,
+                 "inputs" => [],
+                 "name" => "get",
+                 "outputs" => [%{"name" => "", "type" => "uint256", "value" => 0}],
+                 "payable" => _,
+                 "stateMutability" => _,
+                 "type" => _
+               },
+               %{
+                 "constant" => true,
+                 "inputs" => [%{"name" => "x", "type" => "uint256"}],
+                 "name" => "with_arguments",
+                 "outputs" => [%{"name" => "", "type" => "bool", "value" => ""}],
+                 "payable" => _,
+                 "stateMutability" => _,
+                 "type" => _
+               }
+             ] = response
+    end
+  end
+
+  describe "query_function/2" do
+    test "given the arguments, fetches the function value from the blockchain", %{bypass: bypass} do
+      smart_contract = insert(:smart_contract)
+      contract_address_hash = Hash.to_string(smart_contract.address_hash)
+
+      Bypass.expect(bypass, fn conn ->
+        Conn.resp(
+          conn,
+          200,
+          ~s[{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000","id":"get"}]
+        )
+      end)
+
+      assert [
+               %{
+                 "name" => "",
+                 "type" => "uint256",
+                 "value" => 0
+               }
+             ] = Reader.query_function(contract_address_hash, %{name: "get", args: []})
     end
   end
 end
