@@ -1,0 +1,101 @@
+<section class="container-fluid">
+
+  <%= render ExplorerWeb.AddressView, "overview.html", assigns %>
+
+  <div class="card">
+    <div class="card-header">
+      <ul class="nav nav-tabs card-header-tabs">
+        <li class="nav-item">
+          <%= link(
+                gettext("Transactions"),
+                class: "nav-link",
+                to: address_transaction_path(@conn, :index, @conn.assigns.locale, @conn.params["address_id"])
+              ) %>
+        </li>
+        <li class="nav-item">
+          <%= link(
+                gettext("Internal Transactions"),
+                class: "nav-link",
+                "data-test": "internal_transactions_tab_link",
+                to: address_internal_transaction_path(@conn, :index, @conn.assigns.locale, @conn.params["address_id"])
+              ) %>
+        </li>
+        <li class="nav-item">
+          <%= link(
+              to: address_contract_path(@conn, :index, @conn.assigns.locale, @conn.params["address_id"]),
+              class: "nav-link") do %>
+            <%= gettext("Code") %>
+
+            <%= if smart_contract_verified?(@address) do %>
+              <i class="far fa-check-circle"></i>
+            <% end %>
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link(
+              gettext("Read Contract"),
+              to: address_read_contract_path(@conn, :index, @conn.assigns.locale, @conn.params["address_id"]),
+              class: "nav-link active")%>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card-body">
+      <h2>
+        <i class="fas fa-book"></i>
+        Read Contract Information
+      </h2>
+
+      <%= for {function, counter} <- Enum.with_index(@read_only_functions, 1) do %>
+        <div class="d-flex py-2 flex-wrap border-bottom" data-function>
+          <div class="py-2 pr-2">
+            <%= counter %>.
+
+            <%= function["name"] %>
+
+            &#8594;
+          </div>
+
+          <%= if !queryable?(function["inputs"]) do %>
+            <span class="py-2">
+              <%= for output <- function["outputs"] do %>
+                <%= output["value"] %>
+              <% end %>
+            </span>
+          <% else %>
+            <form class="form-inline" data-form-read-contract data-url="<%= address_read_contract_path(@conn, :create, :en, @address) %>">
+              <input type="hidden" name="function_name" value='<%= function["name"] %>' />
+
+              <%= for input <- function["inputs"] do %>
+                <div class="form-group pr-2">
+                  <input type="text" name="function_input" class="form-control form-control-sm" placeholder='<%= input["name"] %>(<%= input["type"] %>)'  />
+                </div>
+              <% end %>
+
+              <button data-query-button class="button button--secondary button--xsmall py-0">
+                <%= gettext("Query")%>
+              </button>
+            </form>
+          <% end %>
+
+          <div class='p-2 text-muted <%= if (queryable?(function["inputs"]) == true), do: "w-100" %>'>
+            <%= if (queryable?(function["inputs"]) == true), do: raw "&#8627;" %>
+
+            <%= for output <- function["outputs"] do %>
+              <%= if output["type"] == "address" do %>
+                <%= link(
+                   output["type"],
+                   to: address_path(@conn, :show, @conn.assigns.locale, output["blockchain_value"])
+                 ) %>
+              <% else %>
+                <%= output["type"] %>
+              <% end %>
+            <% end %>
+          </div>
+
+          <div data-function-response></div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

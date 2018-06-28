@@ -12,6 +12,7 @@ import '../css/app.scss'
 import '@babel/polyfill'
 import 'phoenix_html'
 import 'bootstrap'
+import 'phoenix_ujs'
 
 // Import local files
 //
@@ -25,3 +26,4 @@ import './lib/from_now'
 import './lib/market_history_chart'
 import './lib/sidebar'
 import './lib/tooltip'
+import './lib/smart_contract/read_contract'

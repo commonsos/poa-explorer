@@ -2,7 +2,7 @@ defmodule ExplorerWeb.Router do
   use ExplorerWeb, :router
 
   pipeline :browser do
-    plug(:accepts, ["html"])
+    plug(:accepts, ["html", "json"])
     plug(:fetch_session)
     plug(:fetch_flash)
     plug(:protect_from_forgery)
@@ -92,6 +92,13 @@ defmodule ExplorerWeb.Router do
         AddressContractVerificationController,
         only: [:new, :create],
         as: :verify_contract
+      )
+
+      resources(
+        "/read_contract",
+        AddressReadContractController,
+        only: [:index, :create],
+        as: :read_contract
       )
     end
 
