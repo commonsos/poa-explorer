@@ -1,4 +1,4 @@
-<section class="container-fluid">
+<section class="container">
 
   <%= render ExplorerWeb.AddressView, "overview.html", assigns %>
 
@@ -76,29 +76,10 @@
                   ) %>
             </div>
           </div>
-
-        <table class="table table-responsive table-font">
-          <thead>
-            <tr>
-              <th class="transactions__column-header transactions__column-header--status">
-                <span class="transactions__column-title transactions__column-title--status"><%= gettext "Status" %></span>
-              </th>
-              <th><%= gettext "Hash" %></th>
-              <th><%= gettext "Block" %></th>
-              <th><%= gettext "Age" %></th>
-              <th><%= gettext "From" %></th>
-              <th></th>
-              <th><%= gettext "To" %></th>
-              <th><%= gettext "Value" %> (<%= gettext "Ether" %>)</th>
-              <th><%= gettext "Fee" %></th>
-            </tr>
-          </thead>
-          <tbody data-selector='transactions-list'>
-            <%= for transaction <- @transactions do %>
-              <%= render "_transaction.html", locale: @locale, transaction: transaction %>
-            <% end %>
-          </tbody>
-        </table>
+          <h2 class="card-title"><%= gettext "Transactions" %></h2>
+          <%= for transaction <- @transactions do %>
+            <%= render "_transaction.html", locale: @locale, transaction: transaction %>
+          <% end %>
         <% else %>
           <p><%= gettext "There are no Transactions" %></p>
         <% end %>
